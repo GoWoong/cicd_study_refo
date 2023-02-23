@@ -1,58 +1,72 @@
-name: Ko_test-1
+      name: Build and Deploy
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+      on:
+        push:
+          branches: [ main ]
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2  
-      
-      - name: docker build setup
-        uses: docker/setup-buildx-action@v1
-        
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-2
-          
-      - name: AWS ECR 로그인
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-     
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ setps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: fastapi_file_repo
-          IMAGE_NAME: my-python-app
-          IMAGE_TAG: ${{ github.sha }}
-        run:
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-      
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Deploy to EC2
-        uses: aws-actions/aws-codedoploy-github-deployment@v1
-        with:
-          application-name: cicd_test_app_ko
-          deployment-group: cicd_deploy_group
-          region: ap-northeast-2
-          wait-until-deployed: true
-          revision-type: docker
-          image-definitions: name=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }},revision=${{ github.sha}}
-        
-          
+      env:
+        AWS_REGION: ap-northeast-2
+        ECR_REGISTRY: 847307211665.dkr.ecr.ap-northeast-2.amazonaws.com
+        ECR_REPOSITORY: fastapi_file_repo
+        IMAGE_TAG: latest
+        IMAGE_NAME: my-python-app
+        S3_BUCKET: ko-appspec-bucket-test
+        S3_KEY: deploy.zip
+        CODEDEPLOY_APPLICATION: cicd_test_app_ko
+        CODEDEPLOY_DEPLOYMENT_GROUP: cicd_deploy_group
+
+      jobs:
+        build:
+          runs-on: ubuntu-latest
+
+          steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+
+            - name: Zip AppSpec and Scripts folders
+              run: zip -r deploy.zip deploy
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v1
+              with:
+                aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                aws-region: ap-northeast-2
+
+            - name: Upload zip file to s3
+              uses: aws-actions/configure-aws-credentials@v1
+              with:
+                aws-region: ${{ env.AWS_REGION }}
+                role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+              id: configure-aws
+
+            - name: Upload deploy file to S3
+              run: aws s3 cp deploy.zip s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
+
+            - name: AWS ECR 로그인
+              id: login-ecr
+              uses: aws-actions/amazon-ecr-login@v1
+
+
+            - name: Build Docker image and push to ECR
+              id: build-image
+              env:
+                ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+                ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+                IMAGE_TAG: ${{ env.IMAGE_TAG }}
+              run: |
+                docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+                docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+                
+            - name: Create CodeDeploy Deployment
+              uses: aws-actions/aws-codedeploy-appspec-action@v1
+              with:
+                appliacation: ${{ env.CODEDEPLOY_APPLICATION }}
+                deployment_group: ${{ env.CODEDEPLOY_DEPLOYMENT_GROUP }}
+                revision_type: S3
+                S3_location: bucket=${{ env.S3_BUCKET }}, key=${{ env.S3_Key }}
+                appspec: deploy/appspec.yaml
+                ignore_application_stop_failures: true
+                wait: true
+
       
