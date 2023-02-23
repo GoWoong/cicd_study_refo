@@ -24,7 +24,10 @@
               uses: actions/checkout@v2
 
             - name: Zip AppSpec and Scripts folders
-              run: zip -r deploy.zip deploy
+              run: |
+                cd ..
+                zip -r deploy.zip deploy
+                mv deploy.zip app.zip
 
             - name: Configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v1
@@ -59,14 +62,25 @@
                 docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
                 
             - name: Create CodeDeploy Deployment
-              uses: aws-actions/aws-codedeploy-appspec-action@v1
-              with:
-                appliacation: ${{ env.CODEDEPLOY_APPLICATION }}
-                deployment_group: ${{ env.CODEDEPLOY_DEPLOYMENT_GROUP }}
-                revision_type: S3
-                S3_location: bucket=${{ env.S3_BUCKET }}, key=${{ env.S3_Key }}
-                appspec: deploy/appspec.yaml
-                ignore_application_stop_failures: true
-                wait: true
+              env:
+                AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                AWS_DEFAULT_REGION: ${{ env.AWS_REGION }}
+                CODEDEPLOY_APPLICATION: ${{ env.CODEDEPLOY_APPLICATION }}
+                CODEDEPLOY_DEPLOYMENT_GROUP: ${{ env.CODEDEPLOY_DEPLOYMENT_GROUP }}
+                ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+                ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+                IMAGE_TAG: ${{ env.IMAGE_TAG }}
+              run: |
+                # Download the appspec file from S3
+                aws s3 cp s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }} app.zip
+                unzip app.zip deploy/appspec.yaml
 
-      
+                # Create a new deployment
+                aws deploy create-deployment \
+                  --application-name $CODEDEPLOY_APPLICATION \
+                  --deployment-group-name $CODEDEPLOY_DEPLOYMENT_GROUP \
+                  --description "Deploying version $IMAGE_TAG of $ECR_REPOSITORY" \
+                  --revision revisionType=S3,s3Location="{bucket=${S3_BUCKET},key=${S3_KEY}}" \
+                  --file-exists-behavior OVERWRITE \
+                  --ignore-application-stop-failures
