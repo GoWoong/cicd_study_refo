@@ -10,8 +10,8 @@ WORKDIR /app
 # Install Poetry
 RUN pip install poetry
 
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends apt-utils && \
+RUN sudo apt-get install debconf-utils && \
+    apt-get update && \
     apt-get install -y curl && \
     curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python && \
     . /root/.poetry/env && \
