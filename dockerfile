@@ -4,7 +4,7 @@ FROM python:3.9-slim-buster
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y curl && \
+RUN apt-get install -y curl && \
     curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python && \
     . /root/.poetry/env && \
     poetry config virtualenvs.create false
