@@ -44,7 +44,7 @@
               id: configure-aws
 
             - name: Upload deploy file to S3
-              run: aws s3 cp deploy.zip s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
+              run: aws s3 cp /home/runner/work/cicd_study_refo/deploy.zip s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
 
             - name: AWS ECR 로그인
               id: login-ecr
