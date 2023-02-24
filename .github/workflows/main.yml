@@ -44,16 +44,13 @@
             - name: Upload deploy file to S3
               run: aws s3 cp /home/runner/work/cicd_study_refo/deploy.zip s3://${{ env.S3_BUCKET }}/${{ env.S3_KEY }}
 
-            - name: AWS ECR 로그인
-              id: login-ecr
-              uses: aws-actions/amazon-ecr-login@v1
-
             - name: Build Docker image and push to ECR
               id: build-image
               env:
                 ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
                 ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
                 IMAGE_TAG: ${{ env.IMAGE_TAG }}
+              uses: aws-actions/amazon-ecr-login@v1
               run: |
                 docker build -t fastapi_file_repo .
                 docker tag fastapi_file_repo:latest public.ecr.aws/e6a5s7p4/fastapi_file_repo:latest
