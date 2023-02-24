@@ -55,8 +55,9 @@
                 ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
                 IMAGE_TAG: ${{ env.IMAGE_TAG }}
               run: |
-                docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
-                docker push $ECR_REPOSITORY:$IMAGE_TAG
+                docker build -t fastapi_file_repo .
+                docker tag fastapi_file_repo:latest public.ecr.aws/e6a5s7p4/fastapi_file_repo:latest
+                docker push public.ecr.aws/e6a5s7p4/fastapi_file_repo:$IMAGE_TAG
                 
             - name: Create CodeDeploy Deployment
               env:
