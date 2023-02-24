@@ -26,7 +26,7 @@
             - name: Zip AppSpec and Scripts folders
               run: |
                 cd ..
-                cd ..
+                pwd
                 zip -r deploy.zip deploy
                 mv deploy.zip app.zip
 
