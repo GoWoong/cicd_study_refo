@@ -10,7 +10,8 @@ WORKDIR /app
 # Install Poetry
 RUN pip install poetry
 
-RUN apt update && \
+RUN apt install apt-utils && \
+    apt update && \
     apt install -y curl && \
     curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python && \
     . /root/.poetry/env && \
