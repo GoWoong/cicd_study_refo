@@ -56,8 +56,9 @@
                 ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
                 IMAGE_TAG: ${{ env.IMAGE_TAG }}
               run: |
+                aws ecr-public get-login-password --region ap-north-east2 | docker login --username AWS --password-stdin public.ecr.aws/e6a5s7p4
                 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-                docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+                docker push --timeout 300 $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
                 
             - name: Create CodeDeploy Deployment
               env:
